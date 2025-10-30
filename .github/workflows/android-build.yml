@@ -32,21 +32,28 @@ jobs:
       - name: Grant execute permission for gradlew
         run: chmod +x ./gradlew
 
+      - name: Detect module path
+        id: detect
+        run: |
+          MODULE_PATH=$(find . -type f -name "build.gradle*" -exec dirname {} \; | grep -vE "gradle/wrapper|\\." | head -n 1)
+          echo "Detected module: $MODULE_PATH"
+          echo "MODULE_PATH=$MODULE_PATH" >> $GITHUB_ENV
+
       - name: Build Debug APK
-        run: ./gradlew clean assembleDebug --stacktrace --info
+        run: ./gradlew :${{ env.MODULE_PATH##*/ }}:assembleDebug --stacktrace --info
 
       - name: Create output folder
         run: mkdir -p output
 
       - name: Copy APK to output folder
         run: |
-          APK_PATH=$(find app/build/outputs/apk -name "*.apk" | head -n 1)
+          APK_PATH=$(find $MODULE_PATH/build/outputs -name "*.apk" | head -n 1)
           if [ -f "$APK_PATH" ]; then
             cp "$APK_PATH" output/app-debug.apk
             echo "✅ APK found and copied successfully!"
           else
             echo "❌ APK not found. Build may have failed."
-            ls -R app/build/outputs || true
+            ls -R $MODULE_PATH/build || true
             exit 1
           fi
 
